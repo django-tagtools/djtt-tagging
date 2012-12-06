@@ -1,6 +1,6 @@
-==============
-Django Tagging
-==============
+=======================
+Django TagTools Tagging
+=======================
 
 A generic tagging application for `Django`_ projects, which allows
 association of a number of tags with any Django model instance and makes
@@ -18,8 +18,9 @@ Installation
 Installing an official release
 ------------------------------
 
-Official releases are made available from
-http://code.google.com/p/django-tagging/
+Official releases are made available from::
+
+   https://github.com/django-tagtools/djtt-tagging
 
 Source distribution
 ~~~~~~~~~~~~~~~~~~~
@@ -31,25 +32,16 @@ named ``setup.py``. Enter this command::
 
 ...and the package will install automatically.
 
-Windows installer
-~~~~~~~~~~~~~~~~~
-
-A Windows installer is also made available - download the .exe
-distribution file and launch it to install the application.
-
-An uninstaller will also be created, accessible through Add/Remove
-Programs in your Control Panel.
-
 Installing the development version
 ----------------------------------
 
 Alternatively, if you'd like to update Django Tagging occasionally to pick
 up the latest bug fixes and enhancements before they make it into an
-official release, perform a `Subversion`_ checkout instead. The following
+official release, perform a `Git`_ clone instead. The following
 command will check the application's development branch out to an
-``tagging-trunk`` directory::
+``djtt-tagging`` directory::
 
-   svn checkout http://django-tagging.googlecode.com/svn/trunk/ tagging-trunk
+   git clone https://github.com/django-tagtools/djtt-tagging.git
 
 Add the resulting folder to your `PYTHONPATH`_ or symlink (`junction`_,
 if you're on Windows) the ``tagging`` directory inside it into a
@@ -64,22 +56,18 @@ opening a Python interpreter and entering the following commands::
    (0, 3, 'pre')
 
 When you want to update your copy of the Django Tagging source code, run
-the command ``svn update`` from within the ``tagging-trunk`` directory.
+the command ``git pull`` from within the ``djtt-tagging`` directory.
 
 .. caution::
 
    The development version may contain bugs which are not present in the
    release version and introduce backwards-incompatible changes.
 
-   If you're tracking trunk, keep an eye on the `CHANGELOG`_ and the
-   `backwards-incompatible changes wiki page`_ before you update your
-   copy of the source code.
+   If you're tracking trunk, keep an eye on the `CHANGELOG`_.
 
-.. _`Subversion`: http://subversion.tigris.org
 .. _`PYTHONPATH`: http://www.python.org/doc/2.5.2/tut/node8.html#SECTION008120000000000000000
 .. _`junction`: http://www.microsoft.com/technet/sysinternals/FileAndDisk/Junction.mspx
-.. _`CHANGELOG`: http://django-tagging.googlecode.com/svn/trunk/CHANGELOG.txt
-.. _`backwards-incompatible changes wiki page`: http://code.google.com/p/django-tagging/wiki/BackwardsIncompatibleChanges
+.. _`CHANGELOG`: https://github.com/django-tagtools/djtt-tagging/blob/master/CHANGELOG.txt
 
 Using Django Tagging in your applications
 -----------------------------------------
@@ -104,13 +92,23 @@ appropriate settings to your project's settings file.
 
 The following settings are available:
 
-FORCE_LOWERCASE_TAGS
---------------------
+NORMALIZE_TAG_CASE
+------------------
+
+Default: ``False``
+
+A string that defines how tag names will be normalized. Current values can be
+``upper_case``, ``lower_case``, and ``capwords``. If this is set as ``False``,
+then no tag normalization will be done.
+
+FORCE_LOWERCASE_TAGS (Deprecated)
+---------------------------------
 
 Default: ``False``
 
 A boolean that turns on/off forcing of all tag names to lowercase before
-they are saved to the database.
+they are saved to the database. This setting has been deprecated in favor of
+the ``NORMALIZE_TAG_CASE`` setting.
 
 MAX_TAG_LENGTH
 --------------
@@ -120,6 +118,16 @@ Default: ``50``
 An integer which specifies the maximum length which any tag is allowed
 to have. This is used for validation in the ``django.contrib.admin``
 application and in any forms automatically generated using ``ModelForm``.
+
+
+Management commands
+===================
+
+``normalize_tags``
+------------------
+
+This command will normalize all tag names in the database according to the
+current tag normalization settings.
 
 
 Registering your models
@@ -284,6 +292,13 @@ Fields
 ``Tag`` objects have the following fields:
 
 * ``name`` -- The name of the tag. This is a unique value.
+
+``Tag`` objects have the following methods:
+
+* ``merge_into(tag, delete=True)`` -- merges one tag into another tag. This
+  has the net effect of moving all the ``TaggedItem`` instances from one tag
+  to another. Additionally, if ``delete`` is ``True``, after the merge is
+  complete, the old tag will be deleted.
 
 Manager functions
 ~~~~~~~~~~~~~~~~~

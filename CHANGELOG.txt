@@ -1,6 +1,20 @@
-========================
-Django Tagging Changelog
-========================
+=================================
+Django TagTools Tagging Changelog
+=================================
+
+* Added South migrations for upgrading from brosner/django-tagging.
+* Dropped support for Django < 1.2
+* Dropped Python 2.3 compatibility, since newer versions of Django do not
+  support it.
+* Added support for tag name normalization. Currently supported formats are:
+  upper_case, lower_case, and capwords. This is set via a setting called
+  NORMALIZE_TAG_CASE which now supersedes the deprecated FORCE_LOWERCASE_TAGS
+  setting. Additional formats can be added by adding a static method to
+  utils.TagNameNormalizer.
+* Added a management command called normalize_tags that will normalize all
+  tags currently in the database according to the current normalization
+  settings.
+* Added a merge_into method on the Tag model for merging tags.
 
 Version 0.3.1, 22nd January 2010:
 ---------------------------------
@@ -25,7 +39,7 @@ Version 0.3.0, 22nd August 2009:
 * ``TaggedItemManager``'s methods now accept a ``QuerySet`` or a
   ``Model`` class. If a ``QuerySet`` is given, it will be used as the
   basis for the ``QuerySet``s the methods return, so can be used to
-  restrict results to a subset of a model's instances. The 
+  restrict results to a subset of a model's instances. The
   `tagged_object_list`` generic view and ModelTaggedItemManager``
   manager have been updated accordingly.
 

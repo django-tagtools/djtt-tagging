@@ -1,20 +1,16 @@
 """
 Models and managers for generic tagging.
 """
-# Python 2.3 compatibility
-try:
-    set
-except NameError:
-    from sets import Set as set
-
 from django.contrib.contenttypes import generic
 from django.contrib.contenttypes.models import ContentType
+from django.core.exceptions import ValidationError
 from django.db import connection, models
 from django.db.models.query import QuerySet
 from django.utils.translation import ugettext_lazy as _
 
 from tagging import settings
-from tagging.utils import calculate_cloud, get_tag_list, get_queryset_and_model, parse_tag_input
+from tagging.utils import calculate_cloud, get_tag_list, \
+    get_queryset_and_model, parse_tag_input, TagNameNormalizer
 from tagging.utils import LOGARITHMIC
 
 qn = connection.ops.quote_name
@@ -24,6 +20,7 @@ qn = connection.ops.quote_name
 ############
 
 class TagManager(models.Manager):
+
     def update_tags(self, obj, tag_names):
         """
         Update tags associated with an object.
@@ -31,17 +28,22 @@ class TagManager(models.Manager):
         ctype = ContentType.objects.get_for_model(obj)
         current_tags = list(self.filter(items__content_type__pk=ctype.pk,
                                         items__object_id=obj.pk))
-        updated_tag_names = parse_tag_input(tag_names)
-        if settings.FORCE_LOWERCASE_TAGS:
-            updated_tag_names = [t.lower() for t in updated_tag_names]
+
+        # Parse the input and normalize the tag names
+        updated_tag_names = []
+        for t in parse_tag_input(tag_names):
+            updated_tag_names.append(TagNameNormalizer.normalize(t))
 
         # Remove tags which no longer apply
         tags_for_removal = [tag for tag in current_tags \
                             if tag.name not in updated_tag_names]
         if len(tags_for_removal):
-            TaggedItem._default_manager.filter(content_type__pk=ctype.pk,
-                                               object_id=obj.pk,
-                                               tag__in=tags_for_removal).delete()
+            TaggedItem._default_manager.filter(
+                content_type__pk=ctype.pk,
+                object_id=obj.pk,
+                tag__in=tags_for_removal
+            ).delete()
+
         # Add new tags
         current_tag_names = [tag.name for tag in current_tags]
         for tag_name in updated_tag_names:
@@ -58,9 +60,7 @@ class TagManager(models.Manager):
             raise AttributeError(_('No tags were given: "%s".') % tag_name)
         if len(tag_names) > 1:
             raise AttributeError(_('Multiple tags were given: "%s".') % tag_name)
-        tag_name = tag_names[0]
-        if settings.FORCE_LOWERCASE_TAGS:
-            tag_name = tag_name.lower()
+        tag_name = TagNameNormalizer.normalize(tag_names[0])
         tag, created = self.get_or_create(name=tag_name)
         ctype = ContentType.objects.get_for_model(obj)
         TaggedItem._default_manager.get_or_create(
@@ -162,17 +162,11 @@ class TagManager(models.Manager):
         Passing a value for ``min_count`` implies ``counts=True``.
         """
 
-        if getattr(queryset.query, 'get_compiler', None):
-            # Django 1.2+
-            compiler = queryset.query.get_compiler(using='default')
-            extra_joins = ' '.join(compiler.get_from_clause()[0][1:])
-            where, params = queryset.query.where.as_sql(
-                compiler.quote_name_unless_alias, compiler.connection
-            )
-        else:
-            # Django pre-1.2
-            extra_joins = ' '.join(queryset.query.get_from_clause()[0][1:])
-            where, params = queryset.query.where.as_sql()
+        compiler = queryset.query.get_compiler(using='default')
+        extra_joins = ' '.join(compiler.get_from_clause()[0][1:])
+        where, params = queryset.query.where.as_sql(
+            compiler.quote_name_unless_alias, compiler.connection
+        )
 
         if where:
             extra_criteria = 'AND %s' % where
@@ -449,15 +443,19 @@ class TaggedItemManager(models.Manager):
         else:
             return []
 
+
 ##########
 # Models #
 ##########
 
+
 class Tag(models.Model):
     """
     A tag.
+
     """
-    name = models.CharField(_('name'), max_length=50, unique=True, db_index=True)
+    name = models.CharField(_('name'), max_length=50, unique=True,
+        db_index=True)
 
     objects = TagManager()
 
@@ -469,14 +467,53 @@ class Tag(models.Model):
     def __unicode__(self):
         return self.name
 
+    def clean(self):
+        self.name = TagNameNormalizer.normalize(self.name)
+
+    def merge_into(self, tag, delete=True):
+        """
+        Merges all items tagged with the current tag into a different tag. If
+        delete is set to True, then once the merge is complete, the current tag
+        will be deleted.
+
+        """
+        for ti in self.items.all():
+            #
+            # Make sure that the object associated with this tag is not already
+            # tagged with the one we are trying to merge into.
+            #
+            try:
+                ti_exists = TaggedItem.objects.get(
+                    tag=tag,
+                    content_type=ti.content_type,
+                    object_id=ti.object_id
+                )
+                #
+                # If we find that the object was already tagged, then we can
+                # safely delete the taggeditem.
+                #
+                ti.delete()
+            except TaggedItem.DoesNotExist:
+                #
+                # If we don't find that the object was already tagged, then we
+                # can change the tag that the taggeditem points to.
+                #
+                ti.tag = tag
+                ti.save()
+        if delete:
+            self.delete()
+
+
 class TaggedItem(models.Model):
     """
     Holds the relationship between a tag and the item being tagged.
+
     """
-    tag          = models.ForeignKey(Tag, verbose_name=_('tag'), related_name='items')
-    content_type = models.ForeignKey(ContentType, verbose_name=_('content type'))
-    object_id    = models.PositiveIntegerField(_('object id'), db_index=True)
-    object       = generic.GenericForeignKey('content_type', 'object_id')
+    tag  = models.ForeignKey(Tag, verbose_name=_('tag'), related_name='items')
+    content_type = models.ForeignKey(ContentType,
+        verbose_name=_('content type'))
+    object_id = models.PositiveIntegerField(_('object id'), db_index=True)
+    object = generic.GenericForeignKey('content_type', 'object_id')
 
     objects = TaggedItemManager()
 

@@ -9,11 +9,8 @@ from django.db.models.query import QuerySet
 from django.utils.encoding import force_unicode
 from django.utils.translation import ugettext as _
 
-# Python 2.3 compatibility
-try:
-    set
-except NameError:
-    from sets import Set as set
+from tagging import settings
+
 
 def parse_tag_input(input):
     """
@@ -261,3 +258,47 @@ def calculate_cloud(tags, steps=4, distribution=LOGARITHMIC):
                     tag.font_size = i + 1
                     font_set = True
     return tags
+
+
+##########################
+# Tag name normalization #
+##########################
+
+
+class TagNameNormalizer(object):
+    """
+    This class is a container for all tag name normalizing functions.
+
+    """
+
+    @staticmethod
+    def normalize(tag_name):
+        """
+        Normalizes a tag name based on the current NORMALIZE_TAG_CASE setting.
+
+        """
+        CASE = settings.NORMALIZE_TAG_CASE
+        if not CASE:
+            return tag_name
+        if CASE == 'normalize' or CASE[0] == '_':
+            raise Exception(
+                'Invalid NORMALIZE_TAG_CASE setting value: %s' % CASE)
+        try:
+            n = getattr(TagNameNormalizer, CASE)
+        except:
+            raise Exception('Invalid NORMALIZE_TAG_CASE setting value: %s' %
+                CASE)
+        return n(tag_name)
+
+    @staticmethod
+    def upper_case(tag_name):
+        return tag_name.upper()
+
+    @staticmethod
+    def lower_case(tag_name):
+        return tag_name.lower()
+
+    @staticmethod
+    def capwords(tag_name):
+        from string import capwords
+        return capwords(tag_name)
