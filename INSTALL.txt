@@ -4,15 +4,19 @@ To install it, run the following command inside this directory:
 
     python setup.py install
 
-Or if you'd prefer you can simply place the included ``tagging`` directory somewhere on your Python path, or
-symlink to it from somewhere on your Python path; this is useful if you're working from a Subversion checkout.
+Or if you'd prefer you can simply place the included ``tagging`` directory
+somewhere on your Python path, or symlink to it from somewhere on your
+Python path; this is useful if you're working from a Subversion checkout.
 
-If you are upgrading from django-tagging to djtt-tagging, you can upgrade your database structure to the newest
-version using South (In order for this to work, you need to be on the last version of django-tagging). For more
-information on installing South, visit http://south.aeracode.org/. Once south has been installed, your tagging
-database can be upgraded by running the following commands from within your Django project directory:
+If you are upgrading from django-tagging to djtt-tagging, you can upgrade
+your database structure to the newest version using South (In order for this
+to work, you need to be on the last version of django-tagging). For more
+information on installing South, visit http://south.aeracode.org/. Once south
+has been installed, your tagging database can be upgraded by running the
+following commands from within your Django project directory:
 
     python manage.py migrate tagging 0001 --fake
     python manage.py migrate tagging
 
-Note that this application requires Django 1.3 or later. You can obtain Django from http://www.djangoproject.com/.
+Note that this application requires Django 1.3 or later. You can obtain Django
+from http://www.djangoproject.com/.
