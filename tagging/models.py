@@ -32,7 +32,13 @@ class TagManager(models.Manager):
         # Parse the input and normalize the tag names
         updated_tag_names = []
         for t in parse_tag_input(tag_names):
-            updated_tag_names.append(TagNameNormalizer.normalize(t))
+            t_new = TagNameNormalizer.normalize(t)
+            #
+            # After normalization, make sure the same tag was not entered
+            # twice with different capitalization
+            #
+            if t_new not in updated_tag_names:
+                updated_tag_names.append(t_new)
 
         # Remove tags which no longer apply
         tags_for_removal = [tag for tag in current_tags \
