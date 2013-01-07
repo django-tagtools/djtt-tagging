@@ -11,7 +11,3 @@ class TagAdmin(admin.ModelAdmin):
 
 admin.site.register(TaggedItem)
 admin.site.register(Tag, TagAdmin)
-
-
-
-

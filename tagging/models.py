@@ -482,6 +482,9 @@ class Tag(models.Model):
     """
     name = models.CharField(_('name'), max_length=50, unique=True,
         db_index=True)
+    display_name = models.CharField(_('display name'), max_length=256,
+        null=True, blank=True,
+        help_text=_('Use this to override default tag name normalization'))
 
     objects = TagManager()
 
@@ -491,6 +494,11 @@ class Tag(models.Model):
         verbose_name_plural = _('tags')
 
     def __unicode__(self):
+        return self.name
+
+    def get_display_name(self):
+        if self.display_name:
+            return self.display_name
         return self.name
 
     def clean(self):
