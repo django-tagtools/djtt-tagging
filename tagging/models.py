@@ -30,19 +30,34 @@ class TagManager(models.Manager):
                                         items__object_id=obj.pk))
 
         # Parse the input and normalize the tag names
-        updated_tag_names = []
-        for t in parse_tag_input(tag_names):
-            t_new = TagNameNormalizer.normalize(t)
+        normalized_tag_names = []
+        for t_name in parse_tag_input(tag_names):
+            t_name = TagNameNormalizer.normalize(t_name)
             #
             # After normalization, make sure the same tag was not entered
             # twice with different capitalization
             #
-            if t_new not in updated_tag_names:
-                updated_tag_names.append(t_new)
+            if t_name not in normalized_tag_names:
+                normalized_tag_names.append(t_name)
+
+        # Apply synonyms (my new word: synonymization :-)
+        synonymized_tag_names = []
+        for t_name in normalized_tag_names:
+            try:
+                s = Synonym.objects.get(name=t_name)
+                t_name = s.tag.name
+            except Synonym.DoesNotExist:
+                pass
+            #
+            # After "synonymization", make sure the same tag was not entered
+            # more than once
+            #
+            if t_name not in synonymized_tag_names:
+                synonymized_tag_names.append(t_name)
 
         # Remove tags which no longer apply
         tags_for_removal = [tag for tag in current_tags \
-                            if tag.name not in updated_tag_names]
+                            if tag.name not in synonymized_tag_names]
         if len(tags_for_removal):
             TaggedItem._default_manager.filter(
                 content_type__pk=ctype.pk,
@@ -52,7 +67,7 @@ class TagManager(models.Manager):
 
         # Add new tags
         current_tag_names = [tag.name for tag in current_tags]
-        for tag_name in updated_tag_names:
+        for tag_name in synonymized_tag_names:
             if tag_name not in current_tag_names:
                 tag, created = self.get_or_create(name=tag_name)
                 TaggedItem._default_manager.create(tag=tag, object=obj)
@@ -67,6 +82,11 @@ class TagManager(models.Manager):
         if len(tag_names) > 1:
             raise AttributeError(_('Multiple tags were given: "%s".') % tag_name)
         tag_name = TagNameNormalizer.normalize(tag_names[0])
+        try:
+            s = Synonym.objects.get(name=tag_name)
+            tag_name = s.tag.name
+        except Synonym.DoesNotExist:
+            pass
         tag, created = self.get_or_create(name=tag_name)
         ctype = ContentType.objects.get_for_model(obj)
         TaggedItem._default_manager.get_or_create(
@@ -475,6 +495,13 @@ class Tag(models.Model):
 
     def clean(self):
         self.name = TagNameNormalizer.normalize(self.name)
+        try:
+            syn = Synonym.objects.get(name=self.name)
+            raise ValidationError(
+                'Synonym with same name already exists for tag "%s"' %
+                    syn.tag.name)
+        except:
+            pass
 
     def merge_into(self, tag, delete=True):
         """
@@ -531,3 +558,36 @@ class TaggedItem(models.Model):
 
     def __unicode__(self):
         return u'%s [%s]' % (self.object, self.tag)
+
+
+class Synonym(models.Model):
+    """
+    A Synonym for a tag.
+
+    """
+    name = models.CharField(_('name'), max_length=50, unique=True,
+        db_index=True)
+    tag  = models.ForeignKey(Tag, verbose_name=_('tag'),
+        related_name='synonyms')
+
+    class Meta:
+        ordering = ('name',)
+        verbose_name = _('synonym')
+        verbose_name_plural = _('synonyms')
+
+    def clean(self):
+        self.name = TagNameNormalizer.normalize(self.name)
+
+    def save(self, **kwargs):
+        result = super(Synonym, self).save(**kwargs)
+        try:
+            #
+            # If a synonym is saved and a tag with the same name exists,
+            # we do a merge. This allows us to do housekeeping by moving tags
+            # into synonyms.
+            #
+            t = Tag.objects.get(name=self.name)
+            t.merge_into(self.tag)
+        except Tag.DoesNotExist:
+            pass
+        return result

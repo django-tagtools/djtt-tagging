@@ -156,13 +156,29 @@ def get_tag_list(tags):
        * A ``Tag`` ``QuerySet``.
 
     """
-    from tagging.models import Tag
+    from tagging.models import Tag, Synonym
     if isinstance(tags, Tag):
         return [tags]
     elif isinstance(tags, QuerySet) and tags.model is Tag:
         return tags
     elif isinstance(tags, types.StringTypes):
-        return Tag.objects.filter(name__in=parse_tag_input(tags))
+        # Normalize the tag names
+        normalized_tag_names = []
+        for t_name in parse_tag_input(tags):
+            t_name = TagNameNormalizer.normalize(t_name)
+            if t_name not in normalized_tag_names:
+                normalized_tag_names.append(t_name)
+        # Apply synonyms
+        synonymized_tag_names = []
+        for t_name in normalized_tag_names:
+            try:
+                s = Synonym.objects.get(name=t_name)
+                t_name = s.tag.name
+            except Synonym.DoesNotExist:
+                pass
+            if t_name not in synonymized_tag_names:
+                synonymized_tag_names.append(t_name)
+        return Tag.objects.filter(name__in=synonymized_tag_names)
     elif isinstance(tags, (types.ListType, types.TupleType)):
         if len(tags) == 0:
             return tags
