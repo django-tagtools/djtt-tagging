@@ -21,13 +21,22 @@ What Is New
 
 The following is a summary of what has changed since forking from django-tagging:
 
-* Support has been dropped for legacy Django. This works on Django 1.3+, anything
-less than that is not being tested.
+* Support has been dropped for legacy Django. This works on Django 1.3+,
+anything less than that is not being tested.
 
 * Tag name normalization has been added. You can now specify via a setting that
 all tags be stored as upper-case, lower-case, or capitalized regardless of how
 the user enters them in. A Django managment function has been added to normalize
 all tags based on your current setting.
+
+* Basic synonym support has been added. Tags can now have a series of synonyms
+attached to them. Any time a synonym is used when adding a tag to a piece of
+content, it will be replaced with the tag when the object is saved.
+
+* Tags now have a display name. If you want to override the display of a tags
+name, fill in the display name in the tag admin. The Tag model now has a
+get_display_name method which will get the display name (if it exists) or the
+regular tag name otherwise.
 
 Contributors
 ============

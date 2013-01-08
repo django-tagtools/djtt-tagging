@@ -293,12 +293,19 @@ Fields
 
 * ``name`` -- The name of the tag. This is a unique value.
 
+* ``display_name`` -- A display name to use instead of the tag name. This is
+  optional, but useful if you want to override the tag name normalization (i.e.
+  capitalization) or use special characters when displaying the tag name.
+
 ``Tag`` objects have the following methods:
 
 * ``merge_into(tag, delete=True)`` -- merges one tag into another tag. This
   has the net effect of moving all the ``TaggedItem`` instances from one tag
   to another. Additionally, if ``delete`` is ``True``, after the merge is
   complete, the old tag will be deleted.
+
+* ``get_display_name()`` -- gets the display name for a tag (if set), otherwise
+  it returns the name of the tag.
 
 Manager functions
 ~~~~~~~~~~~~~~~~~
